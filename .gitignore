@@ -1,0 +1,20 @@
+cat >> .gitignore <<'EOF'
+# venv / caches / OS
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+
+# build artifacts
+*.egg-info/
+dist/
+build/
+
+# tests/coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.idea/
+EOF
