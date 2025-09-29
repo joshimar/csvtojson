@@ -34,10 +34,14 @@ jobs:
           # 1) Create a tiny CSV
           printf "name,age,active\nAlice,30,true\nBob,5,false\n" > sample.csv
 
+          cat sample.csv
+
           # 2) Run CLI (prints output path)
           OUT=$(csv2json sample.csv)
           echo "CLI wrote: $OUT"
           test -f "$OUT"
+
+          cat sample.json
 
           # 3) Validate JSON content
           python - <<'PY' "$OUT"
