@@ -1,20 +1,22 @@
-cat >> .gitignore <<'EOF'
-# venv / caches / OS
-.venv/
+cat > .gitignore <<'EOF'
+# Python bytecode / caches
 __pycache__/
 *.py[cod]
-.DS_Store
 
-# build artifacts
-*.egg-info/
-dist/
+# Virtual environments
+.venv/
+
+# Build artifacts
 build/
+dist/
+*.egg-info/
 
-# tests/coverage
+# Test / coverage outputs
 .pytest_cache/
 .coverage
 htmlcov/
 
-# IDE
+# IDE / OS
 .idea/
+.DS_Store
 EOF
