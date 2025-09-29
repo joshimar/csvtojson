@@ -48,3 +48,6 @@ exclude_lines = [
   "if __name__ == '__main__':",      # <— fixed
   "if TYPE_CHECKING:",
 ]
+
+[project.scripts]
+csv2json = "csvtojson.cli:main"
