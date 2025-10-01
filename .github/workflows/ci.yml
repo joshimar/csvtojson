@@ -68,20 +68,27 @@ jobs:
         run: test -f coverage.xml || coverage xml -o coverage.xml
 
       - name: Install ReportGenerator
-        run: dotnet tool install -g dotnet-reportgenerator-globaltool
+        run: |
+          dotnet tool install -g dotnet-reportgenerator-globaltool
+          # ensure the tool is on PATH for this job
+          echo "$HOME/.dotnet/tools" >> "$GITHUB_PATH"
 
       - name: Create HTML + Markdown summary
         run: |
           reportgenerator \
             -reports:coverage.xml \
             -targetdir:coveragereport \
-            -reporttypes:Html;MarkdownSummaryGithub
+            -reporttypes:"Html;MarkdownSummaryGithub"
 
-      - name: Add summary to Actions UI
-        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
+          # append the GH-friendly summary to the Actions job summary
+          if [ -f coveragereport/SummaryGithub.md ]; then
+            cat coveragereport/SummaryGithub.md >> "$GITHUB_STEP_SUMMARY"
+          fi
 
-      - name: Upload HTML report (artifact)
+      - name: Upload full HTML report (artifact)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: coverage-html-${{ matrix.python-version }}
           path: coveragereport
+          if-no-files-found: ignore
