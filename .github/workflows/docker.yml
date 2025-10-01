@@ -1,0 +1,93 @@
+name: Docker
+on:
+  push:
+    branches: [main]
+    tags: ['v*']             # e.g. v0.2.0
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write            # needed to push to GHCR
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}  # ghcr.io/<owner>/<repo>
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU (for multi-arch emulation)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=tag
+            type=sha
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Build the Dockerfile "test" stage — this runs pytest during build
+      - name: Build test stage (runs pytest)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: test
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Build the release image and load it into the runner for a smoke test
+      - name: Build release (load locally)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: release
+          load: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:local
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test container
+        shell: bash
+        run: |
+          printf "name,age,active\nAlice,30,true\nBob,5,false\n" > sample.csv
+          docker run --rm -v "$PWD:/work" -w /work ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:local sample.csv
+          python - <<'PY'
+          import json, pathlib
+          data = json.loads(pathlib.Path("sample.json").read_text(encoding="utf-8"))
+          assert data == [{"name":"Alice","age":30,"active":True},{"name":"Bob","age":5,"active":False}], data
+          print("OK: container CLI produced expected JSON")
+          PY
+
+      # Push multi-arch images (amd64 + arm64) on main or tags (not PRs)
+      - name: Build and push image (multi-arch)
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: release
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
