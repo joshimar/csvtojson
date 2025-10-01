@@ -30,8 +30,7 @@ addopts = [
   "-v",
   "--cov",                           # let coverage config pick sources
   "--cov-report=html",
-  "--cov-report=term-missing",
-  "--cov-report=xml" # coverage report to then publish into GitHub Actions UI
+  "--cov-report=term-missing"
 ]
 
 [tool.coverage.run]
