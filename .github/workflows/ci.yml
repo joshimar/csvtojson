@@ -63,3 +63,37 @@ jobs:
           name: htmlcov-${{ matrix.python-version }}
           path: htmlcov/
           if-no-files-found: ignore
+
+      - name: Publish coverage to job summary
+        run: |
+          python - <<'PY'
+          import os, xml.etree.ElementTree as ET
+          root = ET.parse("coverage.xml").getroot()  # Cobertura XML
+          lr  = float(root.attrib.get("line-rate", 0.0))
+          br  = float(root.attrib.get("branch-rate", 0.0))
+          lv  = int(root.attrib.get("lines-valid", 0))
+          lc  = int(root.attrib.get("lines-covered", 0))
+          md  = []
+          md.append("# Coverage Summary")
+          md.append(f"**Line:** {lr*100:.2f}% ({lc}/{lv})")
+          if "branch-rate" in root.attrib:
+              md.append(f"**Branch:** {br*100:.2f}%")
+          # Lowest-covered files table (top 10)
+          files = []
+          for cls in root.iter("class"):
+              fn = cls.attrib["filename"]
+              lines = [int(l.attrib["hits"]>0) for l in cls.iter("line")]
+              valid = len(lines)
+              covered = sum(lines)
+              rate = 100.0 if valid==0 else covered/valid*100
+              files.append((rate, covered, valid, fn))
+          files.sort(key=lambda x: x[0])
+          table = ["\n## Lowest-covered files",
+                   "\n| File | Coverage | Covered/Valid |",
+                   "|---|---:|---:|"]
+          for rate, cov, valid, fn in files[:10]:
+              table.append(f"| `{fn}` | {rate:.1f}% | {cov}/{valid} |")
+          out = "\n\n".join(md + ["\n".join(table)])
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write(out + "\n")
+          PY
