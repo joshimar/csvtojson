@@ -68,47 +68,15 @@ jobs:
         run: |
           test -f coverage.xml || coverage xml -o coverage.xml
 
-      - name: Publish coverage to job summary
-        run: |
-          python - <<'PY'
-          import os, xml.etree.ElementTree as ET
+      - name: Generate coverage summary (Markdown + badge)
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage.xml
+          badge: true
+          format: markdown
+          output: both           # writes to job summary + file
+          thresholds: '60 80'    # <low, high> bands for colors
 
-          root = ET.parse("coverage.xml").getroot()   # Cobertura XML
-
-          # Top-level metrics
-          lr = float(root.attrib.get("line-rate") or 0.0)
-          br = root.attrib.get("branch-rate")
-          lv = int(float(root.attrib.get("lines-valid") or 0))
-          lc = int(float(root.attrib.get("lines-covered") or 0))
-
-          md = ["# Coverage Summary", f"**Line:** {lr*100:.2f}% ({lc}/{lv})"]
-          if br is not None:
-              md.append(f"**Branch:** {float(br)*100:.2f}%")
-
-          # Per-file coverage (lowest 10)
-          rows = []
-          for cls in root.iter("class"):
-              fn = cls.attrib.get("filename", "")
-              total = 0
-              covered = 0
-              for ln in cls.iter("line"):
-                  hits = int(ln.attrib.get("hits", "0"))  # <-- key fix
-                  total += 1
-                  if hits > 0:
-                      covered += 1
-              rate = 100.0 if total == 0 else covered / total * 100
-              rows.append((rate, covered, total, fn))
-
-          rows.sort(key=lambda x: x[0])
-          table = [
-              "\n## Lowest-covered files",
-              "\n| File | Coverage | Covered/Valid |",
-              "|---|---:|---:|",
-          ]
-          for rate, cov, tot, fn in rows[:10]:
-              table.append(f"| `{fn}` | {rate:.1f}% | {cov}/{tot} |")
-
-          out = "\n\n".join(md + ["\n".join(table)])
-          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
-              f.write(out + "\n")
-          PY
+      - name: Also append the summary file
+        if: always()
+        run: cat code-coverage-results.md >> $GITHUB_STEP_SUMMARY
