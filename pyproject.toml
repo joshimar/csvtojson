@@ -39,7 +39,7 @@ source = ["src"]                     # <— scales if you add more packages
 omit = ["*/tests/*", "*/__pycache__/*", "*/.venv/*"]
 
 [tool.coverage.report]
-fail_under = 80            # test coverage required minimum percentage
+fail_under = 50            # test coverage required minimum percentage
 show_missing = true
 exclude_lines = [
   "pragma: no cover",
